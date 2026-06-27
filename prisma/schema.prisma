@@ -1,0 +1,159 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+// ------------------------------------------------------
+// MULTI-TENANT CORE
+// ------------------------------------------------------
+
+// The highest level tenant (White Label or Agency)
+model Tenant {
+  id        String     @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  domain    String?    @unique // For white labeling (e.g., app.agency.com)
+  type      TenantType @default(AGENCY)
+  
+  locations Location[]
+  users     TenantUser[]
+  modules   TenantModule[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum TenantType {
+  AGENCY
+  WHITE_LABEL
+  DIRECT // For users signing up directly
+}
+
+// A specific business location
+model Location {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId  String   @db.ObjectId
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  name      String
+  address   String?
+  placeId   String?  // e.g. Google Place ID
+  
+  users     LocationUser[]
+  modules   LocationModule[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Global Users
+model User {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  email     String   @unique
+  name      String?
+  password  String?  // For credential auth
+  
+  tenants   TenantUser[]
+  locations LocationUser[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// RBAC: Users mapped to Tenants
+model TenantUser {
+  id        String     @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId  String     @db.ObjectId
+  userId    String     @db.ObjectId
+  role      TenantRole @default(MEMBER)
+  
+  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, userId])
+}
+
+// RBAC: Users mapped to specific Locations
+model LocationUser {
+  id         String       @id @default(auto()) @map("_id") @db.ObjectId
+  locationId String       @db.ObjectId
+  userId     String       @db.ObjectId
+  role       LocationRole @default(MEMBER)
+  
+  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([locationId, userId])
+}
+
+enum TenantRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum LocationRole {
+  MANAGER
+  MEMBER
+}
+
+// ------------------------------------------------------
+// MODULE REGISTRY
+// ------------------------------------------------------
+
+// Registered plugins in the system
+model Module {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  slug        String   @unique
+  name        String
+  description String?
+  version     String   @default("1.0.0")
+  isActive    Boolean  @default(true) // Global kill switch
+
+  tenantModules   TenantModule[]
+  locationModules LocationModule[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Modules enabled at the Tenant level
+model TenantModule {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId  String   @db.ObjectId
+  moduleId  String   @db.ObjectId
+  config    String?  // JSON string for tenant-level config overrides
+
+  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  module    Module @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, moduleId])
+}
+
+// Modules enabled at the Location level
+model LocationModule {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  locationId String   @db.ObjectId
+  moduleId   String   @db.ObjectId
+  config     String?  // JSON string for location-level config overrides
+
+  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  module     Module   @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([locationId, moduleId])
+}
