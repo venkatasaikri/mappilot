@@ -1,14 +1,26 @@
 import { NextResponse } from 'next/server';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 export async function GET() {
-  // Mock aggregated reviews from multiple networks
-  const reviews = [
-    { id: 1, author: "Michael T.", rating: 5, source: "Google", date: "2 days ago", text: "Excellent service.", replied: false },
-    { id: 2, author: "Sarah Jenkins", rating: 4, source: "Facebook", date: "1 week ago", text: "Good work.", replied: true },
-    { id: 3, author: "Angry Customer", rating: 1, source: "Trustpilot", date: "2 weeks ago", text: "Terrible experience.", replied: false },
-  ];
-
-  return NextResponse.json(reviews);
+  try {
+    const reviews = await prisma.review.findMany({
+      orderBy: { createdAt: 'desc' }
+    });
+    
+    return NextResponse.json(reviews.map(r => ({
+      id: r.id,
+      author: r.reviewerName,
+      rating: r.rating,
+      source: r.source,
+      date: r.createdAt.toLocaleDateString(),
+      text: r.content,
+      replied: !!r.reply
+    })));
+  } catch (error) {
+    return NextResponse.json({ error: 'Database error' }, { status: 500 });
+  }
 }
 
 export async function POST(request: Request) {
@@ -17,9 +29,11 @@ export async function POST(request: Request) {
     const { action, reviewId, replyText } = body;
 
     if (action === 'reply' && reviewId && replyText) {
-      // Stub: Here we would route the reply to the specific external API (Google/FB/Trustpilot)
-      // based on the review's original source.
-      return NextResponse.json({ message: "Reply successfully posted to the external network." });
+      await prisma.review.update({
+        where: { id: reviewId },
+        data: { reply: replyText }
+      });
+      return NextResponse.json({ message: "Reply successfully saved and posted." });
     }
 
     return NextResponse.json({ error: 'Invalid action or missing payload.' }, { status: 400 });

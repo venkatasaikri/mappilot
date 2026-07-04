@@ -5,10 +5,8 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { keyword, locationId } = body;
 
-    // Stub: Discover Top Competitors
-    // In production, this pings Google Places API or DataForSEO
-    // to find the businesses ranking in the top 10 for the target keyword
-    // within the specified radius of the locationId.
+    // Simulate external API (Google Places / DataForSEO) latency
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
     const mockCompetitors = [
       { id: 1, name: "Joe's Emergency Plumbing", rank: 1, rating: 4.8, reviews: 310, distance: "0.8 miles" },

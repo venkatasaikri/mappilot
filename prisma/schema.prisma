@@ -21,6 +21,9 @@ model Tenant {
   locations Location[]
   users     TenantUser[]
   modules   TenantModule[]
+  prompts   Prompt[]
+  campaigns Campaign[]
+  agents    Agent[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -44,6 +47,10 @@ model Location {
   
   users     LocationUser[]
   modules   LocationModule[]
+  reviews   Review[]
+  analytics Analytics[]
+  citationAudits CitationAudit[]
+  competitors    Competitor[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -156,4 +163,120 @@ model LocationModule {
   updatedAt  DateTime @updatedAt
 
   @@unique([locationId, moduleId])
+}
+
+// ------------------------------------------------------
+// BUSINESS ENTITIES (Reviews, Analytics, Prompts)
+// ------------------------------------------------------
+
+model Review {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  locationId   String   @db.ObjectId
+  location     Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  
+  reviewerName String
+  rating       Int
+  content      String?
+  source       String   @default("Google")
+  reply        String?
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Prompt {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId    String   @db.ObjectId
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  title       String
+  content     String
+  category    String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Analytics {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  locationId  String   @db.ObjectId
+  location    Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  
+  date        DateTime
+  traffic     Int      @default(0)
+  calls       Int      @default(0)
+  formLeads   Int      @default(0)
+  conversions Int      @default(0)
+
+  @@unique([locationId, date])
+}
+
+model Campaign {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId    String   @db.ObjectId
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  name        String
+  type        String   // "SMS", "Email"
+  sent        Int      @default(0)
+  generated   Int      @default(0)
+  status      String   @default("Running") // "Running", "Completed"
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model CitationAudit {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  locationId    String   @db.ObjectId
+  location      Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  
+  status        String   @default("processing") // "processing", "completed"
+  estimatedTime String?
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Competitor {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  locationId  String   @db.ObjectId
+  location    Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  
+  name        String
+  address     String?
+  avgRank     Int      @default(0)
+  tracked     Boolean  @default(true)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Agent {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId    String   @db.ObjectId
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  name        String   @unique
+  autonomy    String   @default("Draft Only (Requires Manual Approval)")
+  systemPrompt String?
+  permissions String?  // JSON string
+  status      String   @default("offline")
+  
+  tasks       AgentTask[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model AgentTask {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  agentId     String   @db.ObjectId
+  agent       Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  
+  description String
+  status      String   @default("Completed")
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

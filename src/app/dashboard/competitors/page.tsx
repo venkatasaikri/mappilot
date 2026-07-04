@@ -1,11 +1,21 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Swords, Search, Star, MessageSquare, LineChart, TrendingUp, TrendingDown } from "lucide-react";
 
 export default function CompetitorsOverviewPage() {
+  const [competitors, setCompetitors] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch('/api/competitors')
+      .then(res => res.json())
+      .then(data => setCompetitors(data))
+      .catch(console.error);
+  }, []);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -31,10 +41,11 @@ export default function CompetitorsOverviewPage() {
           <Card className="border-indigo-200 shadow-sm">
              <CardHeader className="bg-indigo-50/50 pb-4 border-b">
                 <CardTitle className="text-lg flex items-center gap-2"><Swords size={18} className="text-indigo-600"/> Tracked Rivals</CardTitle>
-                <CardDescription>You are actively benchmarking against these 3 businesses.</CardDescription>
+                <CardDescription>You are actively benchmarking against these {competitors.length} businesses.</CardDescription>
              </CardHeader>
              <CardContent className="p-0">
                 <div className="divide-y">
+                   {/* Main Business */}
                    <div className="p-4 flex justify-between items-center bg-blue-50/30">
                       <div>
                          <div className="font-bold text-sm text-blue-700">Acme Plumbing (You)</div>
@@ -45,36 +56,22 @@ export default function CompetitorsOverviewPage() {
                          <div className="text-[10px] text-muted-foreground">Avg Rank</div>
                       </div>
                    </div>
-                   <div className="p-4 flex justify-between items-center">
-                      <div>
-                         <div className="font-bold text-sm">Joe's Emergency Plumbing</div>
-                         <div className="text-xs text-muted-foreground">0.8 miles away</div>
-                      </div>
-                      <div className="text-right">
-                         <div className="text-sm font-bold text-green-600 flex items-center justify-end gap-1"><TrendingUp size={12}/> #1</div>
-                         <div className="text-[10px] text-muted-foreground">Avg Rank</div>
-                      </div>
-                   </div>
-                   <div className="p-4 flex justify-between items-center">
-                      <div>
-                         <div className="font-bold text-sm">Downtown Rooter</div>
-                         <div className="text-xs text-muted-foreground">1.2 miles away</div>
-                      </div>
-                      <div className="text-right">
-                         <div className="text-sm font-bold text-red-600 flex items-center justify-end gap-1"><TrendingDown size={12}/> #4</div>
-                         <div className="text-[10px] text-muted-foreground">Avg Rank</div>
-                      </div>
-                   </div>
-                   <div className="p-4 flex justify-between items-center">
-                      <div>
-                         <div className="font-bold text-sm">A1 Pipe Services</div>
-                         <div className="text-xs text-muted-foreground">2.5 miles away</div>
-                      </div>
-                      <div className="text-right">
-                         <div className="text-sm font-bold text-muted-foreground flex items-center justify-end gap-1"><TrendingDown size={12}/> #6</div>
-                         <div className="text-[10px] text-muted-foreground">Avg Rank</div>
-                      </div>
-                   </div>
+                   
+                   {/* Competitors Map */}
+                   {competitors.map((comp, idx) => (
+                     <div key={comp.id || idx} className="p-4 flex justify-between items-center">
+                        <div>
+                           <div className="font-bold text-sm">{comp.name}</div>
+                           <div className="text-xs text-muted-foreground">{comp.address}</div>
+                        </div>
+                        <div className="text-right">
+                           <div className={`text-sm font-bold flex items-center justify-end gap-1 ${comp.avgRank <= 3 ? 'text-green-600' : 'text-red-600'}`}>
+                             {comp.avgRank <= 3 ? <TrendingUp size={12}/> : <TrendingDown size={12}/>} #{comp.avgRank}
+                           </div>
+                           <div className="text-[10px] text-muted-foreground">Avg Rank</div>
+                        </div>
+                     </div>
+                   ))}
                 </div>
              </CardContent>
           </Card>

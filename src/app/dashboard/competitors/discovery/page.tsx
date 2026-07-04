@@ -10,23 +10,32 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
 export default function CompetitorDiscoveryPage() {
+  const [keyword, setKeyword] = useState("plumber near me");
   const [isSearching, setIsSearching] = useState(false);
   const [results, setResults] = useState<any[]>([]);
 
-  const handleSearch = () => {
+  const handleSearch = async () => {
     setIsSearching(true);
     toast.info("Scanning Google Maps for top competitors...");
     
-    setTimeout(() => {
-      setResults([
-        { id: 1, name: "Joe's Emergency Plumbing", rank: 1, rating: 4.8, reviews: 310, distance: "0.8 miles" },
-        { id: 2, name: "Downtown Rooter", rank: 3, rating: 4.2, reviews: 85, distance: "1.2 miles" },
-        { id: 3, name: "A1 Pipe Services", rank: 6, rating: 4.5, reviews: 112, distance: "2.5 miles" },
-        { id: 4, name: "Fast Fix Plumbers", rank: 8, rating: 3.9, reviews: 45, distance: "3.1 miles" },
-      ]);
+    try {
+      const res = await fetch('/api/competitors/discover', {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ keyword, locationId: "local" })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setResults(data.competitors);
+        toast.success(`Found ${data.competitors.length} top competitors!`);
+      } else {
+        toast.error("Failed to discover competitors.");
+      }
+    } catch (e) {
+      toast.error("An error occurred during discovery.");
+    } finally {
       setIsSearching(false);
-      toast.success("Found 4 top competitors!");
-    }, 2000);
+    }
   };
 
   const handleTrack = (name: string) => {
@@ -48,7 +57,11 @@ export default function CompetitorDiscoveryPage() {
            <div className="flex flex-col md:flex-row gap-4 items-end">
               <div className="space-y-2 flex-1">
                  <label className="text-sm font-medium">Target Keyword</label>
-                 <Input defaultValue="plumber near me" className="bg-white" />
+                 <Input 
+                   value={keyword} 
+                   onChange={(e) => setKeyword(e.target.value)}
+                   className="bg-white" 
+                 />
               </div>
               <div className="space-y-2 flex-1">
                  <label className="text-sm font-medium flex items-center gap-1"><MapPin size={14}/> Center Location</label>

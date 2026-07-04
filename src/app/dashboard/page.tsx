@@ -1,11 +1,36 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Network, Swords, MapPin, Sparkles, Star, TrendingUp, Search, Puzzle, CreditCard } from "lucide-react";
 import Link from "next/link";
 
 export default function GlobalDashboardPage() {
+  const [locationsCount, setLocationsCount] = useState(0);
+  const [analytics, setAnalytics] = useState<any>(null);
+  const [reviews, setReviews] = useState<any[]>([]);
+
+  useEffect(() => {
+    // Fetch businesses
+    fetch('/api/businesses')
+      .then(res => res.json())
+      .then(data => setLocationsCount(data.length || 0))
+      .catch(() => {});
+
+    // Fetch analytics
+    fetch('/api/analytics/overview')
+      .then(res => res.json())
+      .then(data => setAnalytics(data))
+      .catch(() => {});
+
+    // Fetch reviews
+    fetch('/api/reviews')
+      .then(res => res.json())
+      .then(data => setReviews(data))
+      .catch(() => {});
+  }, []);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -30,28 +55,32 @@ export default function GlobalDashboardPage() {
             <MapPin className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">12</div>
-            <p className="text-xs text-muted-foreground mt-1">Across 3 clients</p>
+            <div className="text-2xl font-bold">{locationsCount}</div>
+            <p className="text-xs text-muted-foreground mt-1">Active locations</p>
           </CardContent>
         </Card>
         <Card className="border-green-100 shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Global Citation Health</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Traffic</CardTitle>
             <Network className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-700">84%</div>
-            <p className="text-xs text-green-600/80 mt-1 flex items-center gap-1"><TrendingUp size={12}/> +4% this month</p>
+            <div className="text-2xl font-bold text-green-700">
+              {analytics?.kpis?.totalTraffic?.value || 0}
+            </div>
+            <p className="text-xs text-green-600/80 mt-1 flex items-center gap-1">Based on analytics data</p>
           </CardContent>
         </Card>
         <Card className="border-purple-100 shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">AI Content Generated</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Leads</CardTitle>
             <Sparkles className="h-4 w-4 text-purple-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-purple-700">142</div>
-            <p className="text-xs text-muted-foreground mt-1">Posts and pages</p>
+            <div className="text-2xl font-bold text-purple-700">
+              {analytics?.kpis?.formLeads?.value || 0}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Forms & Calls</p>
           </CardContent>
         </Card>
         <Card className="border-amber-100 shadow-sm">
@@ -60,8 +89,8 @@ export default function GlobalDashboardPage() {
             <Star className="h-4 w-4 text-amber-600 fill-amber-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-amber-700">2,410</div>
-            <p className="text-xs text-muted-foreground mt-1">4.8 Average Rating</p>
+            <div className="text-2xl font-bold text-amber-700">{reviews.length}</div>
+            <p className="text-xs text-muted-foreground mt-1">Tracked across platforms</p>
           </CardContent>
         </Card>
       </div>
@@ -112,30 +141,18 @@ export default function GlobalDashboardPage() {
           </CardHeader>
           <CardContent>
              <div className="space-y-6">
-                <div className="flex gap-4">
-                   <div className="mt-0.5"><div className="w-2 h-2 rounded-full bg-blue-500 mt-1.5 ring-4 ring-blue-50"></div></div>
-                   <div>
-                      <p className="text-sm font-medium">New Review Received</p>
-                      <p className="text-xs text-muted-foreground mt-1">Acme Plumbing received a 5-star review on Google.</p>
-                      <span className="text-[10px] text-muted-foreground mt-1 block">2 hours ago</span>
-                   </div>
-                </div>
-                <div className="flex gap-4">
-                   <div className="mt-0.5"><div className="w-2 h-2 rounded-full bg-purple-500 mt-1.5 ring-4 ring-purple-50"></div></div>
-                   <div>
-                      <p className="text-sm font-medium">AI Post Published</p>
-                      <p className="text-xs text-muted-foreground mt-1">The scheduled "Winter Preparation" post synced to GBP.</p>
-                      <span className="text-[10px] text-muted-foreground mt-1 block">Yesterday</span>
-                   </div>
-                </div>
-                <div className="flex gap-4">
-                   <div className="mt-0.5"><div className="w-2 h-2 rounded-full bg-amber-500 mt-1.5 ring-4 ring-amber-50"></div></div>
-                   <div>
-                      <p className="text-sm font-medium">Competitor Alert</p>
-                      <p className="text-xs text-muted-foreground mt-1">Joe's Plumbing overtook you for "emergency plumber".</p>
-                      <span className="text-[10px] text-muted-foreground mt-1 block">2 days ago</span>
-                   </div>
-                </div>
+                {reviews.length > 0 ? reviews.slice(0, 3).map(review => (
+                  <div key={review.id} className="flex gap-4">
+                     <div className="mt-0.5"><div className="w-2 h-2 rounded-full bg-blue-500 mt-1.5 ring-4 ring-blue-50"></div></div>
+                     <div>
+                        <p className="text-sm font-medium">New {review.rating}-Star Review on {review.source}</p>
+                        <p className="text-xs text-muted-foreground mt-1">From {review.author}: "{review.text}"</p>
+                        <span className="text-[10px] text-muted-foreground mt-1 block">{review.date}</span>
+                     </div>
+                  </div>
+                )) : (
+                  <p className="text-sm text-muted-foreground">No recent activity found.</p>
+                )}
              </div>
           </CardContent>
         </Card>

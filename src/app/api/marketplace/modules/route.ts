@@ -1,44 +1,26 @@
 import { NextResponse } from 'next/server';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 export async function GET() {
-  // Mock data representing available marketplace plugins
-  const modules = [
-    { 
-      id: "mod_dhanda", 
-      name: "Dhanda Engine", 
-      description: "Advanced local SEO analytics and grid tracking.", 
-      version: "1.2.0", 
-      author: "MapPilot Core", 
-      installed: true, 
-      active: true, 
-      requiresLicense: true, 
-      licenseValid: true 
-    },
-    { 
-      id: "mod_falcon", 
-      name: "Local Falcon Sync", 
-      description: "Deep integration with Local Falcon API for scan credits.", 
-      version: "2.0.1", 
-      author: "MapPilot Core", 
-      installed: true, 
-      active: false, 
-      requiresLicense: true, 
-      licenseValid: false 
-    },
-    { 
-      id: "mod_review", 
-      name: "ReviewTrackers", 
-      description: "Automated review generation and response AI.", 
-      version: "1.0.5", 
-      author: "MapPilot Core", 
-      installed: false, 
-      active: false, 
-      requiresLicense: true, 
-      licenseValid: false 
-    },
-  ];
-
-  return NextResponse.json(modules);
+  try {
+    const modules = await prisma.module.findMany();
+    // Map to expected format
+    return NextResponse.json(modules.map(m => ({
+      id: m.slug,
+      name: m.name,
+      description: m.description,
+      version: m.version,
+      author: "MapPilot Core",
+      installed: true,
+      active: m.isActive,
+      requiresLicense: true,
+      licenseValid: true
+    })));
+  } catch (error) {
+    return NextResponse.json({ error: 'Database error' }, { status: 500 });
+  }
 }
 
 export async function POST(request: Request) {

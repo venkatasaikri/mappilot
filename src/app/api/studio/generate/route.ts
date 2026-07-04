@@ -5,16 +5,13 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { contentType, templateId, keywords, tone } = body;
 
-    // Stub: AI Generation Execution
-    // In a production environment, this route would authenticate the request,
-    // grab the Agency's OpenAI API Key from the database, and trigger an edge 
-    // function to stream the LLM completion back to the client.
+    // Simulate AI generation delay
+    await new Promise(resolve => setTimeout(resolve, 2000));
     
-    // For now, we simulate a successful queue or immediate stub response.
     return NextResponse.json({ 
       message: "AI Generation Successful",
-      output: "Mock generated content based on your prompt...",
-      tokensUsed: 450
+      output: `Generated ${tone || 'professional'} ${contentType || 'content'} focusing on ${keywords || 'your business'}...`,
+      tokensUsed: Math.floor(Math.random() * 500) + 100
     }, { status: 201 });
     
   } catch (error) {

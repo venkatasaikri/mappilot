@@ -1,10 +1,26 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BarChart3, TrendingUp, Users, Phone, Map, Target, Calendar } from "lucide-react";
 
 export default function AnalyticsDashboardPage() {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/analytics/overview')
+      .then(res => res.json())
+      .then(d => {
+        setData(d);
+        setLoading(false);
+      })
+      .catch(console.error);
+  }, []);
+
+  if (loading) return <div className="p-8 text-center text-muted-foreground">Loading Analytics...</div>;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -32,7 +48,7 @@ export default function AnalyticsDashboardPage() {
             <Users className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">14,205</div>
+            <div className="text-2xl font-bold">{data?.kpis?.totalTraffic?.value?.toLocaleString() || 0}</div>
             <p className="text-xs text-green-600 mt-1 flex items-center gap-1"><TrendingUp size={12}/> +12%</p>
           </CardContent>
         </Card>
@@ -43,7 +59,7 @@ export default function AnalyticsDashboardPage() {
             <Phone className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">412</div>
+            <div className="text-2xl font-bold">{data?.kpis?.totalCalls?.value?.toLocaleString() || 0}</div>
             <p className="text-xs text-green-600 mt-1 flex items-center gap-1"><TrendingUp size={12}/> +8%</p>
           </CardContent>
         </Card>
@@ -54,7 +70,7 @@ export default function AnalyticsDashboardPage() {
             <Target className="h-4 w-4 text-purple-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">85</div>
+            <div className="text-2xl font-bold">{data?.kpis?.formLeads?.value?.toLocaleString() || 0}</div>
             <p className="text-xs text-green-600 mt-1 flex items-center gap-1"><TrendingUp size={12}/> +24%</p>
           </CardContent>
         </Card>
@@ -76,7 +92,7 @@ export default function AnalyticsDashboardPage() {
             <BarChart3 className="h-4 w-4 text-indigo-100" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">497</div>
+            <div className="text-2xl font-bold">{data?.kpis?.totalConversions?.value?.toLocaleString() || 0}</div>
             <p className="text-xs text-indigo-100 mt-1 flex items-center gap-1"><TrendingUp size={12}/> +11%</p>
           </CardContent>
         </Card>
@@ -90,12 +106,12 @@ export default function AnalyticsDashboardPage() {
             <CardDescription>Visualizing your growth over the last 30 days.</CardDescription>
           </CardHeader>
           <CardContent className="h-80 flex items-end gap-2 pb-4 pt-8 border-b mx-4">
-             {/* Stylized CSS Bar Chart MVP */}
-             {[
+             {/* Using dynamic data for chart if available, otherwise fallback */}
+             {(data?.timeseries?.length ? data.timeseries.map((d: any) => d.traffic) : [
                40, 45, 60, 55, 70, 65, 80, 75, 90, 85, 95, 100, 
                85, 90, 70, 80, 95, 85, 105, 100, 110, 115, 105, 120,
                110, 125, 130, 140, 135, 150
-             ].map((val, idx) => (
+             ]).map((val: number, idx: number) => (
                 <div key={idx} className="relative flex-1 flex items-end justify-center group h-full">
                    {/* Tooltip */}
                    <div className="absolute -top-8 bg-black text-white text-[10px] py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity z-10 whitespace-nowrap">
@@ -104,15 +120,15 @@ export default function AnalyticsDashboardPage() {
                    {/* Bar */}
                    <div 
                       className={`w-full rounded-t-sm transition-all duration-300 ${idx % 7 === 0 || idx % 7 === 6 ? 'bg-indigo-300 dark:bg-indigo-900/50' : 'bg-indigo-500 dark:bg-indigo-600 hover:bg-indigo-400'}`}
-                      style={{ height: `${(val / 150) * 100}%` }}
+                      style={{ height: `${(val / (Math.max(...(data?.timeseries?.map((d: any) => d.traffic) || [150])))) * 100}%` }}
                    ></div>
                 </div>
              ))}
           </CardContent>
           <div className="flex justify-between px-6 py-4 text-xs text-muted-foreground">
-             <span>May 15</span>
-             <span>June 1</span>
-             <span>June 15</span>
+             <span>Start</span>
+             <span>Middle</span>
+             <span>Current</span>
           </div>
         </Card>
 
@@ -130,7 +146,7 @@ export default function AnalyticsDashboardPage() {
                 <div className="absolute inset-0 rounded-full border-[16px] border-green-500" style={{ clipPath: 'polygon(50% 50%, 100% 0, 100% 100%, 0 100%, 0 0, 50% 0)' }}></div>
                 <div className="absolute inset-0 rounded-full border-[16px] border-blue-500" style={{ clipPath: 'polygon(50% 50%, 100% 0, 100% 50%, 50% 50%)' }}></div>
                 <div className="text-center z-10 flex flex-col items-center justify-center">
-                  <span className="text-3xl font-bold">497</span>
+                  <span className="text-3xl font-bold">{data?.kpis?.totalConversions?.value?.toLocaleString() || 497}</span>
                   <span className="text-xs text-muted-foreground">Total</span>
                 </div>
              </div>
@@ -140,13 +156,17 @@ export default function AnalyticsDashboardPage() {
                    <div className="flex items-center gap-2 text-sm">
                       <div className="w-3 h-3 rounded-full bg-green-500"></div> Phone Calls
                    </div>
-                   <div className="font-semibold text-sm">82%</div>
+                   <div className="font-semibold text-sm">
+                     {data?.kpis?.totalConversions?.value ? Math.round((data.kpis.totalCalls.value / data.kpis.totalConversions.value) * 100) : 82}%
+                   </div>
                 </div>
                 <div className="flex items-center justify-between">
                    <div className="flex items-center gap-2 text-sm">
                       <div className="w-3 h-3 rounded-full bg-blue-500"></div> Website Forms
                    </div>
-                   <div className="font-semibold text-sm">15%</div>
+                   <div className="font-semibold text-sm">
+                     {data?.kpis?.totalConversions?.value ? Math.round((data.kpis.formLeads.value / data.kpis.totalConversions.value) * 100) : 15}%
+                   </div>
                 </div>
                 <div className="flex items-center justify-between">
                    <div className="flex items-center gap-2 text-sm">

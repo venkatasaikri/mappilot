@@ -1,29 +1,52 @@
 import { NextResponse } from 'next/server';
+import { PrismaClient } from '@prisma/client';
 
-export async function GET() {
-  // Mock aggregated analytics data for the given location/agency
-  // In production, this would query a timeseries database (like TimescaleDB)
-  // or fetch from Google Business Profile Insights and Call Tracking integrations.
-  const analyticsData = {
-    kpis: {
-      totalTraffic: { value: 14205, change: 12 },
-      totalCalls: { value: 412, change: 8 },
-      formLeads: { value: 85, change: 24 },
-      directionRequests: { value: 1240, change: -3 },
-      totalConversions: { value: 497, change: 11 },
-    },
-    conversionBreakdown: {
-      phoneCalls: 82,
-      websiteForms: 15,
-      directMessages: 3
-    },
-    timeseries: [
-      { date: "2026-05-15", traffic: 40, calls: 1 },
-      { date: "2026-05-16", traffic: 45, calls: 2 },
-      { date: "2026-05-17", traffic: 60, calls: 4 },
-      // ... more mocked timeseries data points
-    ]
-  };
+const prisma = new PrismaClient();
 
-  return NextResponse.json(analyticsData);
+export async function GET(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const locationId = searchParams.get('locationId');
+
+    // If no specific location is provided, we can fetch all or just aggregate
+    let analyticsQuery: any = {};
+    if (locationId) {
+      analyticsQuery.locationId = locationId;
+    }
+
+    const records = await prisma.analytics.findMany({
+      where: analyticsQuery,
+      orderBy: { date: 'asc' }
+    });
+
+    // Calculate totals
+    const totalTraffic = records.reduce((acc, curr) => acc + curr.traffic, 0);
+    const totalCalls = records.reduce((acc, curr) => acc + curr.calls, 0);
+    const formLeads = records.reduce((acc, curr) => acc + curr.formLeads, 0);
+    const totalConversions = records.reduce((acc, curr) => acc + curr.conversions, 0);
+
+    const analyticsData = {
+      kpis: {
+        totalTraffic: { value: totalTraffic, change: 0 },
+        totalCalls: { value: totalCalls, change: 0 },
+        formLeads: { value: formLeads, change: 0 },
+        directionRequests: { value: 0, change: 0 },
+        totalConversions: { value: totalConversions, change: 0 },
+      },
+      conversionBreakdown: {
+        phoneCalls: totalCalls,
+        websiteForms: formLeads,
+        directMessages: 0
+      },
+      timeseries: records.map(r => ({
+        date: r.date.toISOString().split('T')[0],
+        traffic: r.traffic,
+        calls: r.calls
+      }))
+    };
+
+    return NextResponse.json(analyticsData);
+  } catch (error) {
+    return NextResponse.json({ error: 'Database error' }, { status: 500 });
+  }
 }

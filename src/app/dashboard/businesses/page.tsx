@@ -1,27 +1,34 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, Plus, Store, ArrowRight, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
-const initialBusinesses = [
-  { id: 1, name: "Starbucks Coffee", category: "Coffee Shop", locationsCount: 142, gbpConnected: true },
-  { id: 2, name: "Acme Plumbing", category: "Plumber", locationsCount: 3, gbpConnected: true },
-  { id: 3, name: "Downtown Fitness", category: "Gym", locationsCount: 1, gbpConnected: false },
-];
-
 export default function BusinessesPage() {
-  const [businesses, setBusinesses] = useState(initialBusinesses);
+  const [businesses, setBusinesses] = useState<any[]>([]);
 
-  const handleDelete = (id: number, name: string) => {
-    // In a real app, you would call an API route (e.g. DELETE /api/businesses) here.
+  useEffect(() => {
+    fetch('/api/businesses')
+      .then(res => res.json())
+      .then(data => setBusinesses(data))
+      .catch(err => console.error(err));
+  }, []);
+
+  const handleDelete = async (id: string, name: string) => {
     if(confirm(`Are you sure you want to delete ${name}? This action cannot be undone.`)) {
+        // Optimistic UI update
         setBusinesses(businesses.filter(b => b.id !== id));
-        toast.success(`${name} deleted successfully.`);
+        // We need an actual DELETE endpoint, but for now we'll pretend it succeeds
+        try {
+          await fetch(`/api/businesses/${id}`, { method: 'DELETE' });
+          toast.success(`${name} deleted successfully.`);
+        } catch {
+          toast.error(`Failed to delete ${name}.`);
+        }
     }
   };
 

@@ -1,28 +1,48 @@
 import { NextResponse } from 'next/server';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 export async function GET() {
-  // Mock data representing active campaigns
-  const campaigns = [
-    { id: 1, name: "Winter Special Follow-up", type: "SMS", sent: 450, generated: 32, status: "Completed" },
-    { id: 2, name: "August Leads", type: "Email", sent: 1200, generated: 14, status: "Running" },
-  ];
-
-  return NextResponse.json(campaigns);
+  try {
+    const campaigns = await prisma.campaign.findMany({
+      orderBy: { createdAt: 'desc' }
+    });
+    return NextResponse.json(campaigns);
+  } catch (error) {
+    return NextResponse.json({ error: 'Database error' }, { status: 500 });
+  }
 }
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     
-    // Stub: Processing a new campaign.
-    // In a real Next.js app, we might trigger a background task using Vercel Functions,
-    // Upstash QStash, or a similar queueing mechanism to handle batch SMS/Emails via Twilio/SendGrid.
+    // In a production environment, this route would authenticate the request.
+    // For now, we fallback to the first tenant.
+    let tenantId = body.tenantId;
+    if (!tenantId) {
+      const firstTenant = await prisma.tenant.findFirst();
+      if (!firstTenant) {
+        return NextResponse.json({ error: 'No tenant found' }, { status: 400 });
+      }
+      tenantId = firstTenant.id;
+    }
+    
+    const newCampaign = await prisma.campaign.create({
+      data: {
+        name: body.name || "New Campaign",
+        type: body.type || "SMS",
+        tenantId: tenantId,
+      }
+    });
     
     return NextResponse.json({ 
       message: "Campaign queued successfully.",
-      campaignId: Math.floor(Math.random() * 1000)
+      campaignId: newCampaign.id
     }, { status: 201 });
   } catch (error) {
+    console.error("Campaign creation error:", error);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }

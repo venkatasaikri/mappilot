@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +8,19 @@ import { Textarea } from "@/components/ui/textarea";
 import { Sparkles, Calendar, ImagePlus, History } from "lucide-react";
 
 export default function GbpPostsPage() {
+  const [posts, setPosts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/gbp/posts')
+      .then(res => res.json())
+      .then(data => {
+        setPosts(data);
+        setLoading(false);
+      })
+      .catch(console.error);
+  }, []);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -66,24 +80,33 @@ export default function GbpPostsPage() {
             <CardTitle className="flex items-center gap-2"><History size={18} /> Recent & Scheduled Posts</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="border rounded-md p-4">
-              <div className="flex justify-between items-start mb-2">
-                <span className="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded-full font-medium">Scheduled: Tomorrow 9:00 AM</span>
-              </div>
-              <p className="text-sm text-foreground line-clamp-2">"Get your pipes checked before winter! We offer comprehensive winterization services to prevent freezing..."</p>
-              <div className="mt-3 flex gap-2">
-                <Button variant="outline" size="sm" className="h-7 text-xs">Edit</Button>
-                <Button variant="outline" size="sm" className="h-7 text-xs text-red-600">Cancel</Button>
-              </div>
-            </div>
-
-            <div className="border rounded-md p-4 bg-muted/20">
-              <div className="flex justify-between items-start mb-2">
-                <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full font-medium">Published: 2 days ago</span>
-                <span className="text-xs text-muted-foreground">42 Views</span>
-              </div>
-              <p className="text-sm text-muted-foreground line-clamp-2">"We are thrilled to announce that we've been voted the #1 plumbing service in the downtown area! Thanks to..."</p>
-            </div>
+            {loading ? (
+               <div className="text-sm text-muted-foreground">Loading posts...</div>
+            ) : posts.length > 0 ? (
+               posts.map((post) => (
+                 <div key={post.id} className={`border rounded-md p-4 ${post.status === 'Published' ? 'bg-muted/20' : ''}`}>
+                   <div className="flex justify-between items-start mb-2">
+                     <span className={`text-xs px-2 py-1 rounded-full font-medium ${post.status === 'Scheduled' ? 'bg-amber-100 text-amber-800' : 'bg-green-100 text-green-800'}`}>
+                        {post.status}: {post.time}
+                     </span>
+                     {post.status === 'Published' && (
+                        <span className="text-xs text-muted-foreground">{post.views} Views</span>
+                     )}
+                   </div>
+                   <p className={`text-sm line-clamp-2 ${post.status === 'Published' ? 'text-muted-foreground' : 'text-foreground'}`}>
+                     "{post.content}"
+                   </p>
+                   {post.status === 'Scheduled' && (
+                     <div className="mt-3 flex gap-2">
+                       <Button variant="outline" size="sm" className="h-7 text-xs">Edit</Button>
+                       <Button variant="outline" size="sm" className="h-7 text-xs text-red-600">Cancel</Button>
+                     </div>
+                   )}
+                 </div>
+               ))
+            ) : (
+               <div className="text-sm text-muted-foreground">No posts found.</div>
+            )}
           </CardContent>
         </Card>
       </div>

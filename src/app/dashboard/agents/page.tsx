@@ -1,26 +1,58 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Bot, Settings2, Activity, Play, Square, MessageSquare, TrendingUp, Search, PenTool, Swords } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
 import { toast } from "sonner";
 
-export default function AgentsDashboardPage() {
-  const [agents, setAgents] = useState([
-    { id: "review-agent", name: "Review Agent", role: "Reputation Manager", status: "online", icon: MessageSquare, tasksCompleted: 142, description: "Monitors incoming Google reviews and drafts localized replies based on brand sentiment guidelines." },
-    { id: "seo-agent", name: "SEO Agent", role: "Technical Analyst", status: "online", icon: TrendingUp, tasksCompleted: 8, description: "Constantly monitors local map rankings and geo-grids to identify drops in keyword visibility." },
-    { id: "gbp-agent", name: "GBP Sync Agent", role: "Profile Manager", status: "offline", icon: Search, tasksCompleted: 45, description: "Ensures Google Business Profile data (hours, photos, attributes) stays perfectly synced with your central dashboard." },
-    { id: "content-agent", name: "Content Agent", role: "Copywriter", status: "online", icon: PenTool, tasksCompleted: 24, description: "Takes prompts from the AI Studio and autonomously schedules and publishes weekly SEO updates to GBP." },
-    { id: "competitor-agent", name: "Competitor Agent", role: "Reconnaissance", status: "offline", icon: Swords, tasksCompleted: 12, description: "Tracks local rivals to alert you if they launch a new location, change categories, or see a sudden spike in reviews." },
-  ]);
+// Helper to map DB agent names to icons and roles
+const getAgentMeta = (name: string) => {
+  if (name.includes("Review")) return { icon: MessageSquare, role: "Reputation Manager" };
+  if (name.includes("SEO")) return { icon: TrendingUp, role: "Technical Analyst" };
+  if (name.includes("GBP")) return { icon: Search, role: "Profile Manager" };
+  if (name.includes("Content")) return { icon: PenTool, role: "Copywriter" };
+  if (name.includes("Competitor")) return { icon: Swords, role: "Reconnaissance" };
+  return { icon: Bot, role: "General Agent" };
+};
 
-  const toggleStatus = (id: string, currentStatus: string) => {
+export default function AgentsDashboardPage() {
+  const [agents, setAgents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/agents/registry')
+      .then(res => res.json())
+      .then(data => {
+        setAgents(data);
+        setLoading(false);
+      })
+      .catch(console.error);
+  }, []);
+
+  const toggleStatus = async (id: string, currentStatus: string) => {
     const newStatus = currentStatus === "online" ? "offline" : "online";
+    
+    // Optimistic UI update
     setAgents(agents.map(a => a.id === id ? { ...a, status: newStatus } : a));
-    toast.success(`Agent ${newStatus === 'online' ? 'started' : 'stopped'} successfully.`);
+    
+    try {
+      const res = await fetch('/api/agents/status', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status: newStatus })
+      });
+      if (!res.ok) throw new Error("Failed to update");
+      toast.success(`Agent ${newStatus === 'online' ? 'started' : 'stopped'} successfully.`);
+    } catch (e) {
+      toast.error("Failed to update agent status");
+      // Revert on failure
+      setAgents(agents.map(a => a.id === id ? { ...a, status: currentStatus } : a));
+    }
   };
+
+  if (loading) return <div className="p-8 text-center text-muted-foreground">Loading Workforce...</div>;
 
   return (
     <div className="space-y-6">
@@ -39,7 +71,12 @@ export default function AgentsDashboardPage() {
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {agents.map((agent) => {
-           const Icon = agent.icon;
+           const meta = getAgentMeta(agent.name);
+           const Icon = meta.icon;
+           
+           // Clean up the URL slug based on the name
+           const slug = agent.name.toLowerCase().replace(/\s+/g, '-');
+
            return (
              <Card key={agent.id} className={`border-t-4 ${agent.status === 'online' ? 'border-t-green-500 shadow-md' : 'border-t-gray-300 opacity-80'}`}>
                <CardHeader className="pb-3">
@@ -50,7 +87,7 @@ export default function AgentsDashboardPage() {
                        </div>
                        <div>
                           <CardTitle className="text-lg">{agent.name}</CardTitle>
-                          <div className="text-xs font-semibold text-muted-foreground">{agent.role}</div>
+                          <div className="text-xs font-semibold text-muted-foreground">{meta.role}</div>
                        </div>
                     </div>
                     <div className="flex items-center gap-1.5">
@@ -63,11 +100,12 @@ export default function AgentsDashboardPage() {
                  </div>
                </CardHeader>
                <CardContent className="pb-3 text-sm text-muted-foreground h-20">
-                 {agent.description}
+                 {/* Extract description from systemPrompt for UI display */}
+                 {agent.systemPrompt ? agent.systemPrompt.replace(`You are the ${agent.name}. `, '') : "No description available."}
                </CardContent>
                <div className="px-6 py-2 bg-muted/30 border-y flex justify-between items-center text-xs">
                   <span className="font-semibold text-muted-foreground">Tasks Completed:</span>
-                  <span className="font-bold">{agent.tasksCompleted}</span>
+                  <span className="font-bold">{agent.tasks ? agent.tasks.length : 0}</span>
                </div>
                <CardFooter className="pt-4 flex gap-2">
                   <Button 
@@ -78,7 +116,7 @@ export default function AgentsDashboardPage() {
                     {agent.status === 'online' ? <Square size={14} className="fill-current"/> : <Play size={14} className="fill-current"/>} 
                     {agent.status === 'online' ? 'Stop' : 'Start'}
                   </Button>
-                  <Link href={`/dashboard/agents/${agent.id}`} className="flex-1">
+                  <Link href={`/dashboard/agents/${slug}`} className="flex-1">
                     <Button variant="outline" className="w-full gap-2 h-9">
                       <Settings2 size={14} /> Configure
                     </Button>

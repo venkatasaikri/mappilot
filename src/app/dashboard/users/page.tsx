@@ -1,15 +1,25 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, UserPlus, Shield, MoreHorizontal } from "lucide-react";
 
-const mockUsers = [
-  { id: 1, name: "Alice Johnson", email: "alice@agency.com", role: "Owner", location: "All Locations", status: "Active", mfa: true },
-  { id: 2, name: "Bob Smith", email: "bob@agency.com", role: "Admin", location: "Downtown Store", status: "Active", mfa: false },
-  { id: 3, name: "Charlie Davis", email: "charlie@client.com", role: "Manager", location: "Uptown Store", status: "Pending", mfa: false },
-];
-
 export default function UsersManagementPage() {
+  const [users, setUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/users')
+      .then(res => res.json())
+      .then(data => {
+        setUsers(data);
+        setLoading(false);
+      })
+      .catch(console.error);
+  }, []);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -50,7 +60,11 @@ export default function UsersManagementPage() {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {mockUsers.map((user) => (
+                {loading ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-4 text-center text-muted-foreground">Loading users...</td>
+                  </tr>
+                ) : users.map((user) => (
                   <tr key={user.id} className="bg-background hover:bg-muted/50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="font-medium text-foreground">{user.name}</div>

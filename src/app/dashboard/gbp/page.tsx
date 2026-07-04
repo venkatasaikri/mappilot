@@ -1,11 +1,23 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { MessageSquare, Star, Image as ImageIcon, HelpCircle, Activity, ArrowRight } from "lucide-react";
 
 export default function GbpDashboard() {
+  const [reviews, setReviews] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch('/api/reviews')
+      .then(res => res.json())
+      .then(data => setReviews(data))
+      .catch(console.error);
+  }, []);
+
+  const unansweredReviews = reviews.filter(r => !r.replied).length;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -40,7 +52,7 @@ export default function GbpDashboard() {
               <Star className="h-4 w-4 text-amber-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">4</div>
+              <div className="text-2xl font-bold">{unansweredReviews}</div>
               <p className="text-xs text-red-500 mt-1">Action required</p>
             </CardContent>
           </Link>
@@ -76,18 +88,28 @@ export default function GbpDashboard() {
             <CardDescription>Latest feedback from your customers.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-             <div className="border rounded-md p-4 bg-muted/20">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="flex text-amber-400"><Star size={14} fill="currentColor" /><Star size={14} fill="currentColor" /><Star size={14} fill="currentColor" /><Star size={14} fill="currentColor" /><Star size={14} fill="currentColor" /></div>
-                  <span className="text-sm font-medium">Sarah Jenkins</span>
-                </div>
-                <p className="text-sm text-muted-foreground italic">"Great plumbing service, came exactly on time and fixed the leak in under an hour."</p>
-                <div className="mt-3">
-                  <Link href="/dashboard/gbp/reviews">
-                    <Button size="sm" variant="outline" className="w-full text-xs h-8">Reply with AI</Button>
-                  </Link>
-                </div>
-             </div>
+             {reviews.length === 0 ? (
+               <p className="text-sm text-muted-foreground">No recent reviews.</p>
+             ) : (
+               reviews.slice(0, 3).map((review, i) => (
+                 <div key={i} className="border rounded-md p-4 bg-muted/20">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="flex text-amber-400">
+                        {Array.from({ length: review.rating }).map((_, idx) => (
+                           <Star key={idx} size={14} fill="currentColor" />
+                        ))}
+                      </div>
+                      <span className="text-sm font-medium">{review.author}</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground italic">"{review.text}"</p>
+                    <div className="mt-3">
+                      <Link href="/dashboard/gbp/reviews">
+                        <Button size="sm" variant="outline" className="w-full text-xs h-8">Reply with AI</Button>
+                      </Link>
+                    </div>
+                 </div>
+               ))
+             )}
           </CardContent>
         </Card>
 

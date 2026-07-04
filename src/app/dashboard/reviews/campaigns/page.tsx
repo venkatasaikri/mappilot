@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -7,6 +8,33 @@ import { Mail, Smartphone, Users, Send, Upload, Star } from "lucide-react";
 import { toast } from "sonner";
 
 export default function ReviewCampaignsPage() {
+  const [campaigns, setCampaigns] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch('/api/reviews/campaigns')
+      .then(res => res.json())
+      .then(data => setCampaigns(data))
+      .catch(console.error);
+  }, []);
+
+  const activeCampaigns = campaigns.filter(c => c.status === 'Running').length;
+  const totalSent = campaigns.reduce((acc, curr) => acc + (curr.sent || 0), 0);
+  const totalGenerated = campaigns.reduce((acc, curr) => acc + (curr.generated || 0), 0);
+  const conversionRate = totalSent > 0 ? ((totalGenerated / totalSent) * 100).toFixed(1) : "0.0";
+
+  const handleLaunch = () => {
+    toast.success("Campaign launched successfully. Background workers are processing...");
+    // Ideally this would POST to /api/reviews/campaigns to save the new campaign.
+    fetch('/api/reviews/campaigns', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: "New SMS Blast", type: "SMS" })
+    }).then(() => {
+      // Refresh list
+      fetch('/api/reviews/campaigns').then(res => res.json()).then(setCampaigns);
+    });
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -23,8 +51,8 @@ export default function ReviewCampaignsPage() {
             <Send className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">2</div>
-            <p className="text-xs text-muted-foreground mt-1">Running this month</p>
+            <div className="text-2xl font-bold">{activeCampaigns}</div>
+            <p className="text-xs text-muted-foreground mt-1">Running right now</p>
           </CardContent>
         </Card>
         <Card>
@@ -33,8 +61,8 @@ export default function ReviewCampaignsPage() {
             <Users className="h-4 w-4 text-purple-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">1,248</div>
-            <p className="text-xs text-muted-foreground mt-1">+12% from last month</p>
+            <div className="text-2xl font-bold">{totalSent}</div>
+            <p className="text-xs text-muted-foreground mt-1">Across all campaigns</p>
           </CardContent>
         </Card>
         <Card>
@@ -43,8 +71,8 @@ export default function ReviewCampaignsPage() {
             <Star className="h-4 w-4 text-amber-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">8.4%</div>
-            <p className="text-xs text-muted-foreground mt-1">105 new reviews generated</p>
+            <div className="text-2xl font-bold">{conversionRate}%</div>
+            <p className="text-xs text-muted-foreground mt-1">{totalGenerated} new reviews generated</p>
           </CardContent>
         </Card>
       </div>
@@ -91,7 +119,7 @@ export default function ReviewCampaignsPage() {
 
           </CardContent>
           <CardFooter className="border-t pt-4">
-            <Button className="w-full gap-2" onClick={() => toast.success("Campaign launched successfully. Background workers are processing...")}><Send size={16} /> Launch Campaign</Button>
+            <Button className="w-full gap-2" onClick={handleLaunch}><Send size={16} /> Launch Campaign</Button>
           </CardFooter>
         </Card>
 
@@ -100,28 +128,32 @@ export default function ReviewCampaignsPage() {
              <CardTitle>Recent Campaigns</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-             <div className="border rounded-lg p-4">
-                <div className="flex justify-between items-center mb-2">
-                   <h3 className="font-bold">Winter Special Follow-up</h3>
-                   <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">Completed</span>
-                </div>
-                <div className="text-sm text-muted-foreground mb-3">Sent via SMS to 450 contacts</div>
-                <div className="flex gap-4 text-sm">
-                   <div><span className="font-semibold">450</span> Sent</div>
-                   <div><span className="font-semibold text-green-600">32</span> Reviews Generated</div>
-                </div>
-             </div>
-
-             <div className="border rounded-lg p-4 bg-muted/10">
-                <div className="flex justify-between items-center mb-2">
-                   <h3 className="font-bold">August Leads</h3>
-                   <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">Running</span>
-                </div>
-                <div className="text-sm text-muted-foreground mb-3">Sending via Email to 1,200 contacts</div>
-                <div className="w-full bg-muted rounded-full h-2 mt-2">
-                  <div className="bg-blue-600 h-2 rounded-full" style={{ width: '45%' }}></div>
-                </div>
-             </div>
+             {campaigns.length === 0 ? (
+               <p className="text-sm text-muted-foreground">No campaigns found.</p>
+             ) : (
+               campaigns.map((c) => (
+                 <div key={c.id} className={`border rounded-lg p-4 ${c.status === 'Running' ? 'bg-muted/10' : ''}`}>
+                    <div className="flex justify-between items-center mb-2">
+                       <h3 className="font-bold">{c.name}</h3>
+                       <span className={`text-xs px-2 py-1 rounded-full ${c.status === 'Completed' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`}>
+                         {c.status}
+                       </span>
+                    </div>
+                    <div className="text-sm text-muted-foreground mb-3">Sending via {c.type} to {c.sent} contacts</div>
+                    
+                    {c.status === 'Completed' ? (
+                      <div className="flex gap-4 text-sm">
+                         <div><span className="font-semibold">{c.sent}</span> Sent</div>
+                         <div><span className="font-semibold text-green-600">{c.generated}</span> Reviews Generated</div>
+                      </div>
+                    ) : (
+                      <div className="w-full bg-muted rounded-full h-2 mt-2">
+                        <div className="bg-blue-600 h-2 rounded-full" style={{ width: '45%' }}></div>
+                      </div>
+                    )}
+                 </div>
+               ))
+             )}
           </CardContent>
         </Card>
       </div>

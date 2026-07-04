@@ -1,8 +1,20 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowUpRight, Users, MapPin, Activity } from "lucide-react";
 
 export default function Dashboard() {
+  const [summary, setSummary] = useState<any>(null);
+
+  useEffect(() => {
+    fetch('/api/dashboard/summary')
+      .then(res => res.json())
+      .then(data => setSummary(data))
+      .catch(console.error);
+  }, []);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -22,7 +34,7 @@ export default function Dashboard() {
             <MapPin className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">142</div>
+            <div className="text-2xl font-bold">{summary?.totalLocations || 0}</div>
             <p className="text-xs text-muted-foreground">+12% from last month</p>
           </CardContent>
         </Card>
@@ -33,7 +45,7 @@ export default function Dashboard() {
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">8</div>
+            <div className="text-2xl font-bold">{summary?.activeModules || 0}</div>
             <p className="text-xs text-muted-foreground">Running seamlessly</p>
           </CardContent>
         </Card>
@@ -44,7 +56,7 @@ export default function Dashboard() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">1,204</div>
+            <div className="text-2xl font-bold">{summary?.platformUsers || 0}</div>
             <p className="text-xs text-muted-foreground">+54 new users this week</p>
           </CardContent>
         </Card>
@@ -55,7 +67,7 @@ export default function Dashboard() {
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">84%</div>
+            <div className="text-2xl font-bold">{summary?.apiUsage || 84}%</div>
             <p className="text-xs text-muted-foreground">Of monthly quota</p>
           </CardContent>
         </Card>
@@ -68,7 +80,7 @@ export default function Dashboard() {
             <CardDescription>Activity across all your connected modules.</CardDescription>
           </CardHeader>
           <CardContent className="h-[300px] flex items-center justify-center border-t border-dashed m-4 rounded-md bg-muted/10">
-            <p className="text-sm text-muted-foreground">Analytics Chart Placeholder</p>
+            <p className="text-sm text-muted-foreground">Connect a location to view activity.</p>
           </CardContent>
         </Card>
         
@@ -78,30 +90,19 @@ export default function Dashboard() {
             <CardDescription>Health check for active plugins.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center gap-4">
-              <div className="w-2 h-2 rounded-full bg-green-500"></div>
-              <div className="flex-1 space-y-1">
-                <p className="text-sm font-medium leading-none">Dhanda Engine</p>
-                <p className="text-xs text-muted-foreground">Synced 2 mins ago</p>
+            {summary?.recentModules?.map((mod: any, i: number) => (
+              <div key={i} className="flex items-center gap-4">
+                <div className={`w-2 h-2 rounded-full ${mod.active ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
+                <div className="flex-1 space-y-1">
+                  <p className="text-sm font-medium leading-none">{mod.name}</p>
+                  <p className="text-xs text-muted-foreground">{mod.status}</p>
+                </div>
+                <Button variant="ghost" size="icon"><ArrowUpRight size={16} /></Button>
               </div>
-              <Button variant="ghost" size="icon"><ArrowUpRight size={16} /></Button>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="w-2 h-2 rounded-full bg-green-500"></div>
-              <div className="flex-1 space-y-1">
-                <p className="text-sm font-medium leading-none">Local Falcon</p>
-                <p className="text-xs text-muted-foreground">Synced 1 hour ago</p>
-              </div>
-              <Button variant="ghost" size="icon"><ArrowUpRight size={16} /></Button>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
-              <div className="flex-1 space-y-1">
-                <p className="text-sm font-medium leading-none">ReviewTrackers</p>
-                <p className="text-xs text-muted-foreground">Syncing...</p>
-              </div>
-              <Button variant="ghost" size="icon"><ArrowUpRight size={16} /></Button>
-            </div>
+            ))}
+            {!summary?.recentModules?.length && (
+               <p className="text-sm text-muted-foreground">No modules installed.</p>
+            )}
           </CardContent>
         </Card>
       </div>
