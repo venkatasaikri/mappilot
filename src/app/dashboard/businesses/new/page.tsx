@@ -13,7 +13,7 @@ export default function NewBusinessPage() {
   const [searchLocation, setSearchLocation] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [results, setResults] = useState<any[]>([]);
-  const [selectedBizIds, setSelectedBizIds] = useState<Set<number>>(new Set());
+  const [selectedBizIds, setSelectedBizIds] = useState<Set<string>>(new Set());
 
   const handleSearch = async () => {
     if (!searchLocation.trim()) {
@@ -44,7 +44,7 @@ export default function NewBusinessPage() {
     }
   };
 
-  const toggleSelection = (id: number) => {
+  const toggleSelection = (id: string) => {
     const newSelected = new Set(selectedBizIds);
     if (newSelected.has(id)) {
       newSelected.delete(id);
@@ -54,16 +54,34 @@ export default function NewBusinessPage() {
     setSelectedBizIds(newSelected);
   };
 
-  const handleAddSelected = () => {
+  const handleAddSelected = async () => {
     if (selectedBizIds.size === 0) {
        toast.error("Please select at least one business to add.");
        return;
     }
 
-    toast.success(`${selectedBizIds.size} businesses added to your workspace!`);
-    setTimeout(() => {
-        window.location.href = "/dashboard/businesses";
-    }, 1500);
+    toast.info("Saving businesses to your workspace...");
+
+    try {
+      const selectedBusinesses = results.filter(biz => selectedBizIds.has(biz.id));
+      
+      const promises = selectedBusinesses.map(biz => 
+        fetch('/api/businesses', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: biz.name, address: biz.address })
+        })
+      );
+
+      await Promise.all(promises);
+
+      toast.success(`${selectedBizIds.size} businesses added to your workspace!`);
+      setTimeout(() => {
+          window.location.href = "/dashboard/businesses";
+      }, 1000);
+    } catch (e) {
+      toast.error("Failed to save businesses. Please try again.");
+    }
   };
 
   return (
