@@ -1,10 +1,16 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const prisma = new PrismaClient();
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 export async function POST(request: Request) {
   try {
+    if (!process.env.GEMINI_API_KEY) {
+      return NextResponse.json({ error: 'Gemini API key is not configured' }, { status: 500 });
+    }
+
     const body = await request.json();
     const { agentId, taskType, payload } = body;
 
@@ -12,34 +18,39 @@ export async function POST(request: Request) {
     const agent = await prisma.agent.findUnique({ where: { id: agentId } });
     if (!agent) return NextResponse.json({ error: 'Agent not found' }, { status: 404 });
 
-    // 2. Simulate AI Processing Delay (2-3 seconds)
-    await new Promise(resolve => setTimeout(resolve, 2500));
-
-    // 3. Generate Simulated Contextual Response
-    let mockResult = "";
+    // 2. Generate Real Contextual Response using Gemini
+    let prompt = agent.systemPrompt || "You are a helpful AI assistant for a local SEO platform.";
+    
     if (taskType === "reply_review") {
-      mockResult = `Drafted response to ${payload?.reviewer || 'customer'}: "Thank you for the feedback! We appreciate your business."`;
+      prompt += `\n\nTask: Draft a professional response to the following customer review.\nReviewer: ${payload?.reviewer || 'customer'}\nRating: ${payload?.rating || 5} stars\nReview Content: ${payload?.reviewContent || 'Great service!'}`;
     } else if (taskType === "seo_audit") {
-      mockResult = `Analyzed local SEO for ${payload?.keyword || 'keyword'}. Found 2 missed opportunities in GMB categories.`;
+      prompt += `\n\nTask: Perform a brief simulated local SEO audit for the keyword "${payload?.keyword || 'keyword'}". Suggest 2 actionable improvements for a Google Business Profile.`;
     } else {
-      mockResult = `Successfully completed task: ${payload?.description || 'Custom task execution'}.`;
+      prompt += `\n\nTask: ${payload?.description || 'Execute custom task'}. Provide a concise execution summary.`;
     }
 
-    // 4. Save Task Memory to Database
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' });
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const aiResult = response.text();
+
+    // 3. Save Task Memory to Database
     const savedTask = await prisma.agentTask.create({
       data: {
         agentId: agent.id,
-        description: mockResult,
+        description: aiResult.substring(0, 500),
         status: agent.autonomy.includes("Draft") ? "Pending Review" : "Completed"
       }
     });
 
     return NextResponse.json({ 
       message: "Task processed",
-      task: savedTask
+      task: savedTask,
+      fullResponse: aiResult
     }, { status: 200 });
     
-  } catch (error) {
-    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+  } catch (error: any) {
+    console.error('Agent Queue error:', error);
+    return NextResponse.json({ error: error.message || 'Server error' }, { status: 500 });
   }
 }

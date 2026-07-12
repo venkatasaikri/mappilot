@@ -8,18 +8,42 @@ import { BarChart3, TrendingUp, Users, Phone, Map, Target, Calendar } from "luci
 export default function AnalyticsDashboardPage() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [locations, setLocations] = useState<any[]>([]);
+  const [selectedLocationId, setSelectedLocationId] = useState<string>("");
 
   useEffect(() => {
-    fetch('/api/analytics/overview')
+    fetch('/api/businesses')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setLocations(data);
+          if (data.length > 0) {
+            setSelectedLocationId(data[0].id);
+          } else {
+            setLoading(false);
+          }
+        }
+      })
+      .catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    if (!selectedLocationId) return;
+    
+    setLoading(true);
+    fetch(`/api/analytics/overview?locationId=${selectedLocationId}`)
       .then(res => res.json())
       .then(d => {
         setData(d);
         setLoading(false);
       })
-      .catch(console.error);
-  }, []);
+      .catch(err => {
+        console.error("Failed to fetch analytics:", err);
+        setLoading(false);
+      });
+  }, [selectedLocationId]);
 
-  if (loading) return <div className="p-8 text-center text-muted-foreground">Loading Analytics...</div>;
+  if (loading && !data) return <div className="p-8 text-center text-muted-foreground">Loading Analytics...</div>;
 
   return (
     <div className="space-y-6">
@@ -29,13 +53,23 @@ export default function AnalyticsDashboardPage() {
           <p className="text-muted-foreground">Track your traffic, leads, and ROI across all channels.</p>
         </div>
         <div className="flex gap-2">
-           <select className="flex h-10 items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background">
+           <select 
+             value={selectedLocationId}
+             onChange={(e) => setSelectedLocationId(e.target.value)}
+             className="flex h-10 items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+           >
+             <option value="" disabled>Select Location</option>
+             {locations.map(loc => (
+               <option key={loc.id} value={loc.id}>{loc.name}</option>
+             ))}
+           </select>
+           <select className="flex h-10 items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background hidden sm:block">
              <option>Last 30 Days</option>
              <option>Last 90 Days</option>
              <option>Year to Date</option>
            </select>
            <Button className="gap-2 bg-blue-600 hover:bg-blue-700">
-             <Calendar size={16} /> Export Report
+             <Calendar size={16} /> Export
            </Button>
         </div>
       </div>
@@ -81,7 +115,7 @@ export default function AnalyticsDashboardPage() {
             <Map className="h-4 w-4 text-amber-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">1,240</div>
+            <div className="text-2xl font-bold">{data?.kpis?.directionRequests?.value?.toLocaleString() || 0}</div>
             <p className="text-xs text-red-600 mt-1 flex items-center gap-1"><TrendingUp size={12} className="rotate-180"/> -3%</p>
           </CardContent>
         </Card>
@@ -126,9 +160,9 @@ export default function AnalyticsDashboardPage() {
              ))}
           </CardContent>
           <div className="flex justify-between px-6 py-4 text-xs text-muted-foreground">
-             <span>Start</span>
-             <span>Middle</span>
-             <span>Current</span>
+             <span>30 Days Ago</span>
+             <span>15 Days Ago</span>
+             <span>Today</span>
           </div>
         </Card>
 
@@ -172,7 +206,9 @@ export default function AnalyticsDashboardPage() {
                    <div className="flex items-center gap-2 text-sm">
                       <div className="w-3 h-3 rounded-full bg-muted-foreground"></div> Direct Messages
                    </div>
-                   <div className="font-semibold text-sm">3%</div>
+                   <div className="font-semibold text-sm">
+                     {data?.kpis?.totalConversions?.value ? Math.round((data.conversionBreakdown.directMessages / data.kpis.totalConversions.value) * 100) : 3}%
+                   </div>
                 </div>
              </div>
           </CardContent>

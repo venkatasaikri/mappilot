@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,8 +13,29 @@ export default function CompetitorDiscoveryPage() {
   const [keyword, setKeyword] = useState("plumber near me");
   const [isSearching, setIsSearching] = useState(false);
   const [results, setResults] = useState<any[]>([]);
+  const [locations, setLocations] = useState<any[]>([]);
+  const [selectedLocationId, setSelectedLocationId] = useState<string>("");
+
+  useEffect(() => {
+    fetch('/api/businesses')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setLocations(data);
+          if (data.length > 0) {
+            setSelectedLocationId(data[0].id);
+          }
+        }
+      })
+      .catch(err => console.error("Failed to fetch locations", err));
+  }, []);
 
   const handleSearch = async () => {
+    if (!selectedLocationId) {
+      toast.error("Please select a location first.");
+      return;
+    }
+
     setIsSearching(true);
     toast.info("Scanning Google Maps for top competitors...");
     
@@ -22,14 +43,14 @@ export default function CompetitorDiscoveryPage() {
       const res = await fetch('/api/competitors/discover', {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ keyword, locationId: "local" })
+        body: JSON.stringify({ keyword, locationId: selectedLocationId })
       });
       const data = await res.json();
       if (res.ok) {
-        setResults(data.competitors);
-        toast.success(`Found ${data.competitors.length} top competitors!`);
+        setResults(data.competitors || []);
+        toast.success(`Found ${(data.competitors || []).length} top competitors!`);
       } else {
-        toast.error("Failed to discover competitors.");
+        toast.error(data.error || "Failed to discover competitors.");
       }
     } catch (e) {
       toast.error("An error occurred during discovery.");
@@ -65,9 +86,18 @@ export default function CompetitorDiscoveryPage() {
               </div>
               <div className="space-y-2 flex-1">
                  <label className="text-sm font-medium flex items-center gap-1"><MapPin size={14}/> Center Location</label>
-                 <Input defaultValue="Acme Plumbing (Downtown)" disabled className="bg-muted text-muted-foreground" />
+                 <select 
+                   value={selectedLocationId}
+                   onChange={(e) => setSelectedLocationId(e.target.value)}
+                   className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-white px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                 >
+                   <option value="" disabled>Select a location</option>
+                   {locations.map(loc => (
+                     <option key={loc.id} value={loc.id}>{loc.name}</option>
+                   ))}
+                 </select>
               </div>
-              <Button className="gap-2 bg-indigo-600 hover:bg-indigo-700 h-10 px-8" onClick={handleSearch} disabled={isSearching}>
+              <Button className="gap-2 bg-indigo-600 hover:bg-indigo-700 h-10 px-8" onClick={handleSearch} disabled={isSearching || !selectedLocationId}>
                  <Search size={16} /> {isSearching ? "Scanning..." : "Find Competitors"}
               </Button>
            </div>
@@ -92,7 +122,7 @@ export default function CompetitorDiscoveryPage() {
                             <div className="font-semibold">{comp.name}</div>
                             <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
                                <span className="flex items-center text-amber-500 font-medium"><Star size={12} className="mr-1 fill-amber-500"/> {comp.rating} ({comp.reviews})</span>
-                               <span className="flex items-center"><MapPin size={12} className="mr-1"/> {comp.distance}</span>
+                               <span className="flex items-center"><MapPin size={12} className="mr-1"/> {comp.distance || 'Unknown'}</span>
                             </div>
                          </div>
                       </div>

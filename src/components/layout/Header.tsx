@@ -1,19 +1,43 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
+import Link from "next/link";
 import { Bell, Search, Menu, MapPin, ChevronDown, CheckCircle2, MessageSquare, AlertCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
 export function Header() {
   const [showNotifications, setShowNotifications] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [showLocations, setShowLocations] = useState(false);
+  const [locations, setLocations] = useState<any[]>([]);
+  const [selectedLocation, setSelectedLocation] = useState<any | null>(null);
+  
+  const notificationsRef = useRef<HTMLDivElement>(null);
+  const locationsRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown when clicking outside
+  // Fetch locations
+  useEffect(() => {
+    fetch('/api/businesses')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setLocations(data);
+          if (data.length > 0) {
+            setSelectedLocation(data[0]);
+          }
+        }
+      })
+      .catch(err => console.error('Failed to fetch locations:', err));
+  }, []);
+
+  // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (notificationsRef.current && !notificationsRef.current.contains(event.target as Node)) {
         setShowNotifications(false);
+      }
+      if (locationsRef.current && !locationsRef.current.contains(event.target as Node)) {
+        setShowLocations(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -28,10 +52,44 @@ export function Header() {
         </Button>
         
         {/* Active Location Selector */}
-        <div className="hidden sm:flex items-center gap-2 px-3 py-2 border rounded-md bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors">
-          <MapPin size={16} className="text-indigo-600" />
-          <span className="text-sm font-medium">Acme Plumbing (Downtown)</span>
-          <ChevronDown size={14} className="text-muted-foreground ml-2" />
+        <div className="relative hidden sm:block" ref={locationsRef}>
+          <div 
+            className="flex items-center gap-2 px-3 py-2 border rounded-md bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors"
+            onClick={() => setShowLocations(!showLocations)}
+          >
+            <MapPin size={16} className="text-indigo-600" />
+            <span className="text-sm font-medium">
+              {selectedLocation ? selectedLocation.name : "Select Location"}
+            </span>
+            <ChevronDown size={14} className="text-muted-foreground ml-2" />
+          </div>
+          
+          {showLocations && (
+            <div className="absolute top-12 left-0 w-64 bg-white border rounded-lg shadow-lg z-50 overflow-hidden">
+              <div className="p-2 border-b bg-slate-50">
+                <span className="font-semibold text-xs text-muted-foreground uppercase tracking-wider">Your Locations</span>
+              </div>
+              <div className="max-h-60 overflow-y-auto">
+                {locations.length > 0 ? (
+                  locations.map((loc) => (
+                    <div 
+                      key={loc.id}
+                      className={`p-3 text-sm cursor-pointer hover:bg-slate-50 flex items-center justify-between border-b last:border-0 ${selectedLocation?.id === loc.id ? 'bg-indigo-50/50' : ''}`}
+                      onClick={() => {
+                        setSelectedLocation(loc);
+                        setShowLocations(false);
+                      }}
+                    >
+                      <span className="font-medium">{loc.name}</span>
+                      {selectedLocation?.id === loc.id && <CheckCircle2 size={14} className="text-indigo-600" />}
+                    </div>
+                  ))
+                ) : (
+                  <div className="p-3 text-sm text-muted-foreground text-center">No locations found.</div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="relative w-full max-w-sm hidden lg:flex items-center ml-4">
@@ -43,7 +101,8 @@ export function Header() {
           />
         </div>
       </div>
-      <div className="flex items-center gap-4 relative" ref={dropdownRef}>
+      
+      <div className="flex items-center gap-4 relative" ref={notificationsRef}>
         <Button variant="ghost" size="icon" className="relative" onClick={() => setShowNotifications(!showNotifications)}>
           <Bell size={20} />
           <span className="absolute top-2 right-2 w-2 h-2 bg-indigo-600 rounded-full"></span>
@@ -88,7 +147,9 @@ export function Header() {
                 </div>
              </div>
              <div className="p-2 border-t text-center bg-slate-50">
-                <Button variant="ghost" className="w-full text-xs text-indigo-600 h-8">View all notifications</Button>
+                <Link href="/dashboard/notifications" className="w-full" onClick={() => setShowNotifications(false)}>
+                  <Button variant="ghost" className="w-full text-xs text-indigo-600 h-8">View all notifications</Button>
+                </Link>
              </div>
           </div>
         )}

@@ -1,26 +1,63 @@
 import { NextResponse } from 'next/server';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { keyword, locationId } = body;
 
-    // Simulate external API (Google Places / DataForSEO) latency
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    if (!process.env.GOOGLE_PLACES_API_KEY) {
+      return NextResponse.json({ error: 'Google Places API key is not configured' }, { status: 500 });
+    }
 
-    const mockCompetitors = [
-      { id: 1, name: "Joe's Emergency Plumbing", rank: 1, rating: 4.8, reviews: 310, distance: "0.8 miles" },
-      { id: 2, name: "Downtown Rooter", rank: 3, rating: 4.2, reviews: 85, distance: "1.2 miles" },
-      { id: 3, name: "A1 Pipe Services", rank: 6, rating: 4.5, reviews: 112, distance: "2.5 miles" },
-      { id: 4, name: "Fast Fix Plumbers", rank: 8, rating: 3.9, reviews: 45, distance: "3.1 miles" },
-    ];
+    const location = await prisma.location.findUnique({ where: { id: locationId } });
+    const queryStr = location?.address ? `${keyword} near ${location.address}` : keyword;
+
+    const response = await fetch(`https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(queryStr)}&key=${process.env.GOOGLE_PLACES_API_KEY}`);
+    const data = await response.json();
+
+    if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
+      console.error("Google Places API Error:", data);
+      return NextResponse.json({ error: 'Failed to fetch from Google Places API', details: data }, { status: 500 });
+    }
+
+    const results = (data.results || []).slice(0, 5);
+    const competitors = [];
+
+    for (let i = 0; i < results.length; i++) {
+      const place = results[i];
+      if (location && place.name.toLowerCase().includes(location.name.toLowerCase())) {
+        continue;
+      }
+      
+      const competitor = await prisma.competitor.create({
+        data: {
+          locationId: locationId,
+          name: place.name,
+          address: place.formatted_address,
+          avgRank: i + 1,
+          tracked: true
+        }
+      });
+      competitors.push({
+        id: competitor.id,
+        name: competitor.name,
+        rank: competitor.avgRank,
+        rating: place.rating || 0,
+        reviews: place.user_ratings_total || 0,
+        distance: "Unknown"
+      });
+    }
 
     return NextResponse.json({ 
       message: "Competitors discovered successfully",
-      competitors: mockCompetitors
+      competitors: competitors
     }, { status: 200 });
     
-  } catch (error) {
-    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+  } catch (error: any) {
+    console.error('Competitor discovery error:', error);
+    return NextResponse.json({ error: error.message || 'Server error' }, { status: 500 });
   }
 }
